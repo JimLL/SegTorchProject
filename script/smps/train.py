@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch.cuda.amp import autocast as autocast
 
-from seg.metrics.mIOU import IOUMetric
+from seg.metrics.mIOU import IOUMetric,IOUMetric_tensor
 from seg.loss.dice import GeneralizedDiceLoss, LogCoshGeneralizedDiceLoss
 from seg.loss.tversky import TverskyLoss
 
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     InteLog = 10
     batch_size_train = 4  # for all GPUs
     batch_size_val = 1  # for all GPUs
-    num_workers = 6
+    num_workers = 2
     LabelMultiChan = False
 
     trainTxtPath = 'E:/PycharmProjects/SegTorchProject/script/train.txt'
@@ -54,6 +54,7 @@ if __name__ == '__main__':
                             drop_last=False, num_workers=num_workers)
     STEPS_val = len(feeder_val)
     # ----------------------------------------------------------------------------------------------
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = smp.UnetPlusPlus(encoder_name="efficientnet-b6", in_channels=4, classes=10)
     model = torch.nn.DataParallel(model, device_ids=list(range(torch.cuda.device_count())))
     model.train()
@@ -76,7 +77,7 @@ if __name__ == '__main__':
     # 但是在数据极度不均衡的情况下交叉熵Loss会在迭代几个Epoch之后远远小于Dice Loss，这个组合Loss会退化为Dice Loss
     # LogCoshGeneralizedDiceLoss : Log-Cosh for smoothing dice
     # ----------------------------------------------------------------------------------------------
-    metirc = IOUMetric(num_classes=10)
+    metirc = IOUMetric_tensor(num_classes=10, to_device=device)
     # ----------------------------------------------------------------------------------------------
     for epoch in range(EPOCHS):
         print("curent learning rate is ", optimizer.param_groups[0]["lr"])
@@ -89,19 +90,21 @@ if __name__ == '__main__':
             with autocast():
                 preds = model(images)
                 loss = Loss(preds, labels)
+
             loss.backward()
             optimizer.step()
             scheduler.step(epoch + step / STEPS)
 
             if step % InteLog == 0:
-                pred_index = torch.argmax(preds, dim=1).detach().cpu().numpy()
+                pred_index = torch.argmax(preds, dim=1).detach()
                 if LabelMultiChan:
-                    label_index = torch.argmax(labels, dim=1).detach().cpu().numpy()
+                    label_index = torch.argmax(labels, dim=1).detach()
                 else:
-                    label_index = labels.detach().cpu().numpy()
+                    label_index = labels.detach()
+
                 metirc.add_batch(pred_index, label_index)
                 _, _, ius, mean_iu, _ = metirc.evaluate()
-                metirc.reset_state()
+
                 loss_scalar = loss.detach().cpu().numpy()
                 print('Epoch [{}][{}/{}]: loss: {:.6f} mIOU: {:.6f}'.format(epoch + 1, step, STEPS,
                                                                             loss_scalar, mean_iu))
@@ -114,7 +117,7 @@ if __name__ == '__main__':
                 for i in range(len(ius)):
                     section = 'IOU/%d' % i
                     writer.add_scalar(section, ius[i], epoch * STEPS + step)
-
+        metirc.reset_state()
         # ----------------------------------------------------------------------------------------------
         # val for in a epoch
         model.eval()
