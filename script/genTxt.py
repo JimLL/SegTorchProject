@@ -33,7 +33,8 @@ def write_file(mode, images, labels):
             else:
                 f.write('{}\t{}\n'.format(images[i], labels[i]))
   # 下述代码用来写入图片标签文件名一一对映的训练集数据库
-train_images_path="/media/jim/DISK/TEMP/Datasets/Others/suichang_round1_train_210120"
+# train_images_path="/media/jim/DISK/TEMP/Datasets/Others/suichang_round1_train_210120"
+train_images_path="F:\Datasets\Others\suichang_round1_train_210120"
 train_images = sort_images(train_images_path, 'tif')
 train_labels = sort_images(train_images_path, 'png')
 val_ratio=0.1

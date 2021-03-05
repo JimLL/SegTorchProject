@@ -25,16 +25,16 @@ import seg.smp as smp
 if __name__ == '__main__':
     EPOCHS = 100
     InteLog = 10
-    batch_size_train = 8  # for all GPUs
-    batch_size_val = 2  # for all GPUs
+    batch_size_train = 4  # for all GPUs
+    batch_size_val = 1  # for all GPUs
     num_workers = 6
     LabelMultiChan = False
 
-    trainTxtPath = '/home/jim/PycharmProjects/SegTorchProject/script/train.txt'
-    valTxtPath = '/home/jim/PycharmProjects/SegTorchProject/script/val.txt'
+    trainTxtPath = 'E:/PycharmProjects/SegTorchProject/script/train.txt'
+    valTxtPath = 'E:/PycharmProjects/SegTorchProject/script/val.txt'
     # ----------------------------------------------------------------------------------------------
     current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    current_path = os.path.join('/home/jim/PycharmProjects/SegTorchProject/script/checkpoint/smps', current_time)
+    current_path = os.path.join('E:/PycharmProjects/SegTorchProject/script/checkpoint/smps', current_time)
     if not os.path.exists(current_path): os.mkdir(current_path)
     model_dir = os.path.join(current_path, 'models')
     if not os.path.exists(model_dir): os.mkdir(model_dir)
@@ -44,17 +44,17 @@ if __name__ == '__main__':
     # ----------------------------------------------------------------------------------------------
     datasets = Loader(trainTxtPath, Augment=True, LabelMultiChan=LabelMultiChan)
     feeder = DataLoader(datasets, batch_size=batch_size_train, shuffle=True,
-                        pin_memory=torch.cuda.is_available(),
+                        pin_memory=False,
                         drop_last=True, num_workers=num_workers)
     STEPS = len(feeder)
 
     datasets_val = Loader(valTxtPath, Augment=True, LabelMultiChan=LabelMultiChan)
     feeder_val = DataLoader(datasets_val, batch_size=batch_size_val, shuffle=True,
-                            pin_memory=torch.cuda.is_available(),
+                            pin_memory=False,
                             drop_last=False, num_workers=num_workers)
     STEPS_val = len(feeder_val)
     # ----------------------------------------------------------------------------------------------
-    model = smp.UnetPlusPlus(encoder_name="efficientnet-b0", in_channels=4, classes=10)
+    model = smp.UnetPlusPlus(encoder_name="efficientnet-b6", in_channels=4, classes=10)
     model = torch.nn.DataParallel(model, device_ids=list(range(torch.cuda.device_count())))
     model.train()
     model.cuda()
@@ -154,6 +154,7 @@ if __name__ == '__main__':
 
         model_subdir = "state_dict_model_e_%d.pt" % (epoch + 1)
         model_save_name = os.path.join(model_dir, model_subdir)
+
         torch.save(model.state_dict(), model_save_name)
         torch.cuda.empty_cache()  # empty cuda cache
     writer.close()

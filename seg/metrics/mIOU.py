@@ -16,6 +16,7 @@ class IOUMetric(object):
     def __init__(self, num_classes):
         self.num_classes = num_classes
         self.hist = np.zeros((num_classes, num_classes))
+        self.eps=1e-5
 
     def _fast_hist(self, label_pred, label_true):
         mask = (label_true >= 0) & (label_true < self.num_classes)
@@ -29,12 +30,12 @@ class IOUMetric(object):
             self.hist += self._fast_hist(lp.flatten(), lt.flatten())
 
     def evaluate(self):
-        acc = np.diag(self.hist).sum() / self.hist.sum()
-        acc_cls = np.diag(self.hist) / self.hist.sum(axis=1)
+        acc = np.diag(self.hist).sum() / (self.hist.sum()+self.eps)
+        acc_cls = np.diag(self.hist) / (self.hist.sum(axis=1)++self.eps)
         acc_cls = np.nanmean(acc_cls)
-        iu = np.diag(self.hist) / (self.hist.sum(axis=1) + self.hist.sum(axis=0) - np.diag(self.hist))
+        iu = np.diag(self.hist) / (self.hist.sum(axis=1) + self.hist.sum(axis=0) - np.diag(self.hist)+self.eps)
         mean_iu = np.nanmean(iu)
-        freq = self.hist.sum(axis=1) / self.hist.sum()
+        freq = self.hist.sum(axis=1) / (self.hist.sum()+self.eps)
         fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
         return acc, acc_cls, iu, mean_iu, fwavacc
 
