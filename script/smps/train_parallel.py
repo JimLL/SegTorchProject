@@ -108,8 +108,8 @@ def worker(rank, args):
         sampler=dist_sampler_val)
     STEPS_val = len(dataloader_val)
     # train
-    model = model.train()
     for epoch in range(EPOCHS):
+        model.train()
         if args.distributed:
             dist_sampler.set_epoch(epoch)
         for step, (images, labels) in enumerate(dataloader):
@@ -143,6 +143,8 @@ def worker(rank, args):
 
         # ----------------------------------------------------------------------------------------------
         # val for in a epoch
+        if args.distributed:
+            dist_sampler_val.set_epoch(epoch)
         model.eval()
         with torch.no_grad():
             loss_val = np.zeros((STEPS_val, 1))
@@ -171,7 +173,7 @@ def worker(rank, args):
                 "ious: 0:{:.3f} 1:{:.3f} 2:{:.3f} 3:{:.3f} 4:{:.3f} 5:{:.3f} 6:{:.3f} 7:{:.3f} 8:{:.3f} 9:{:.3f} ".format(
                     ius_m[0], ius_m[1], ius_m[2], ius_m[3], ius_m[4], ius_m[5], ius_m[6], ius_m[7], ius_m[8],
                     ius_m[9]))
-            metirc.reset_state()
+        metirc.reset_state()
 
     if args.distributed:
         print(
